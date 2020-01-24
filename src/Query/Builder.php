@@ -464,14 +464,17 @@ class Builder
      *
      * @return resource
      */
-    protected function run($filter)
+    protected function run($filter, $perPage = 1000, $cookie = '')
     {
         return $this->connection->{$this->type}(
             $this->getDn(),
             $filter,
             $this->getSelects(),
             $onlyAttributes = false,
-            $this->limit
+            $this->limit,
+            null, // $timelimit
+            null, // $deref
+            [['oid' => LDAP_CONTROL_PAGEDRESULTS, 'value' => ['size' => $perPage, 'cookie' => $cookie]]] // $serverctrls - pagination here
         );
     }
 
@@ -491,15 +494,18 @@ class Builder
         $cookie = '';
 
         do {
-            $this->connection->controlPagedResult($perPage, $isCritical, $cookie);
+            // $this->connection->search($this->dn, $filter, $this)
+            // $this->connection->controlPagedResult($perPage, $isCritical, $cookie);
 
             // Run the search.
-            $resource = $this->run($filter);
+            $resource = $this->run($filter, $perPage, $cookie);
+
+            // dd($resource);
 
             if ($resource) {
                 // If we have been given a valid resource, we will retrieve the next
                 // pagination cookie to send for our next pagination request.
-                $this->connection->controlPagedResultResponse($resource, $cookie);
+                // $this->connection->controlPagedResultResponse($resource, $cookie);
 
                 $pages[] = $this->parse($resource);
             }
@@ -509,7 +515,7 @@ class Builder
         // parameter since we want to reset the page size to the default '1000'. Sending '0'
         // eliminates any further opportunity for running queries in the same request,
         // even though that is supposed to be the correct usage.
-        $this->connection->controlPagedResult();
+        // $this->connection->controlPagedResult();
 
         return $pages;
     }
